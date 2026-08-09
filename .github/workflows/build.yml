@@ -178,13 +178,20 @@ jobs:
           
         prerelease: true
         
-    - name: Send Built File to Telegram
+    - name: Upload to GoFile and Send Link to Telegram
       run: |
+        sudo apt-get update -y && sudo apt-get install -y jq
+
         OUT_DIR="${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}"
         FILE=$(find "$OUT_DIR" -maxdepth 1 -type f -name "OrangeFox*.img" | head -n 1)
 
         if [ -n "$FILE" ]; then
-          curl -s -F "chat_id=4452787333" \
-               -F "document=@${FILE}" \
-               "https://api.telegram.org/bot${{ secrets.bot_token }}/sendDocument"
+          SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+          GOFILE_LINK=$(curl -s -F "file=@$FILE" "https://${SERVER}.gofile.io/uploadFile" | jq -r '.data.downloadPage')
+
+          if [ -n "$GOFILE_LINK" ] && [ "$GOFILE_LINK" != "null" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.bot_token }}/sendMessage" \
+                 -d "chat_id=4452787333" \
+                 -d "text=${GOFILE_LINK}"
+          fi
         fi
