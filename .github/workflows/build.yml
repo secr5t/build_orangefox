@@ -186,12 +186,27 @@ jobs:
         FILE=$(find "$OUT_DIR" -maxdepth 1 -type f -name "OrangeFox*.img" | head -n 1)
 
         if [ -n "$FILE" ]; then
+          MD5_VAL=$(md5sum "$FILE" | awk '{print $1}')
+          SHA256_VAL=$(sha256sum "$FILE" | awk '{print $1}')
+
           SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
           GOFILE_LINK=$(curl -s -F "file=@$FILE" "https://${SERVER}.gofile.io/uploadFile" | jq -r '.data.downloadPage')
 
           if [ -n "$GOFILE_LINK" ] && [ "$GOFILE_LINK" != "null" ]; then
-            curl -s -X POST "https://api.telegram.org/bot${{ secrets.bot_token }}/sendMessage" \
-                 -d "chat_id=4452787333" \
-                 -d "text=${GOFILE_LINK}"
+            CAPTION=$(cat <<EOF
+OrangeFox R12.1 | OPPO A16 | UNOFFICIAL
+<b>Build date:</b> ${{ env.BUILD_DATE }}
+
+<b>Download:</b> <a href="${GOFILE_LINK}">Here</a>
+
+<b>MD5:</b> <code>${MD5_VAL}</code> | <b>SHA256:</b> <code>${SHA256_VAL}</code>
+EOF
+            )
+
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.bot_token }}/sendPhoto" \
+                 -d "chat_id=-1004452787333" \
+                 -d "photo=https://orangefox.tech/r12.png" \
+                 --data-urlencode "caption=${CAPTION}" \
+                 -d "parse_mode=HTML"
           fi
         fi
