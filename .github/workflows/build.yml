@@ -190,18 +190,14 @@ jobs:
             [ $MINS -gt 0 ] && BUILD_DURATION="${BUILD_DURATION}${MINS}m "
             BUILD_DURATION="${BUILD_DURATION}${SECS}s"
 
-            CAPTION=$(cat <<EOF
-<b>OrangeFox R${{ inputs.MANIFEST_BRANCH }}</b> for OPPO A16
-- <b>Build Type:</b> Unofficial
-- <b>Build Date:</b> ${{ env.BUILD_DATE_PRETTY }}
-- <b>Build By:</b> <a href="https://github.com/${ACTOR_CLEAN}">${ACTOR_CLEAN}</a>
-- <b>Build Time:</b> ${BUILD_DURATION}
-
-◾<b>Download:</b> <a href="${DIRECT_LINK}">Here</a>
-
-<b>MD5:</b> <code>${MD5_VAL}</code>
-EOF
-            )
+            CAPTION=$(printf '<b>OrangeFox R%s</b> for OPPO A16\n- <b>Build Type:</b> Unofficial\n- <b>Build Date:</b> %s\n- <b>Build By:</b> <a href="https://github.com/%s">%s</a>\n- <b>Build Time:</b> %s\n\n◾<b>Download:</b> <a href="%s">Here</a>\n\n<b>MD5:</b> <code>%s</code>' \
+              "${{ inputs.MANIFEST_BRANCH }}" \
+              "${{ env.BUILD_DATE_PRETTY }}" \
+              "${ACTOR_CLEAN}" \
+              "${ACTOR_CLEAN}" \
+              "${BUILD_DURATION}" \
+              "${DIRECT_LINK}" \
+              "${MD5_VAL}")
 
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.bot_token }}/sendPhoto" \
                  -d "chat_id=-1004452787333" \
