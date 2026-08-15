@@ -48,123 +48,125 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-                
-    - name: Clean-up
-      uses: rokibhasansagar/slimhub_actions@main
+      - name: Set Build Start and Date
+        run: |
+          echo "BUILD_START=$(date +%s)" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date +'%Y%m%d-%H%M')" >> $GITHUB_ENV
+          echo "BUILD_DATE_PRETTY=$(date -u +'%d %b %Y')" >> $GITHUB_ENV
 
-    - name: Swap Space
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 24
-      
-    - name: Build Environment
-      run: |
-        sudo apt-get update && sudo apt-get install -y aria2 git jq curl
-        git clone https://gitlab.com/OrangeFox/misc/scripts.git -b master
-        cd scripts
-        sudo bash setup/android_build_env.sh
+      - name: Checkout
+        uses: actions/checkout@v4
+                  
+      - name: Clean-up
+        uses: rokibhasansagar/slimhub_actions@main
 
-    - name: Set-up Manifest
-      run: |
-        mkdir -p "${GITHUB_WORKSPACE}/OrangeFox"
-        cd "${GITHUB_WORKSPACE}/OrangeFox"
-        git config --global user.name "${{ github.actor }}"
-        git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-        git clone https://gitlab.com/OrangeFox/sync.git -b master
-        cd sync
-        ./orangefox_sync.sh --branch "${{ inputs.MANIFEST_BRANCH }}" --path "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}"
-
-    - name: Clone Device Tree
-      run: |
-        cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}"
-        git clone "${{ inputs.DEVICE_TREE }}" -b "${{ inputs.DEVICE_TREE_BRANCH }}" "./${{ inputs.DEVICE_PATH }}"
-        cd "./${{ inputs.DEVICE_PATH }}"
+      - name: Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 24
         
-        echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-        echo "SHORT_COMMIT_ID=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-        echo "COMMIT_TITLE=$(git log -1 --pretty=%s)" >> $GITHUB_ENV
-        echo "COMMIT_DATE=$(git log -1 --date=format:%Y-%m-%d --pretty=%cd)" >> $GITHUB_ENV
+      - name: Build Environment
+        run: |
+          sudo apt-get update && sudo apt-get install -y aria2 git jq curl
+          git clone https://gitlab.com/OrangeFox/misc/scripts.git -b master
+          cd scripts
+          sudo bash setup/android_build_env.sh
 
-    - name: Get OrangeFox Recovery Commit
-      run: |
-        cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/bootable/recovery"
+      - name: Set-up Manifest
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/OrangeFox"
+          cd "${GITHUB_WORKSPACE}/OrangeFox"
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git clone https://gitlab.com/OrangeFox/sync.git -b master
+          cd sync
+          ./orangefox_sync.sh --branch "${{ inputs.MANIFEST_BRANCH }}" --path "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}"
 
-        echo "OF_COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-        echo "OF_SHORT_COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-        echo "OF_COMMIT_TITLE=$(git log -1 --pretty=%s)" >> $GITHUB_ENV
-        echo "OF_COMMIT_DATE=$(git log -1 --date=format:%Y-%m-%d --pretty=%cd)" >> $GITHUB_ENV
+      - name: Clone Device Tree
+        run: |
+          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}"
+          git clone "${{ inputs.DEVICE_TREE }}" -b "${{ inputs.DEVICE_TREE_BRANCH }}" "./${{ inputs.DEVICE_PATH }}"
+          cd "./${{ inputs.DEVICE_PATH }}"
+          
+          echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "SHORT_COMMIT_ID=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "COMMIT_TITLE=$(git log -1 --pretty=%s)" >> $GITHUB_ENV
+          echo "COMMIT_DATE=$(git log -1 --date=format:%Y-%m-%d --pretty=%cd)" >> $GITHUB_ENV
 
-    - name: Set Build Date
-      run: |
-        echo "BUILD_DATE=$(date +'%Y%m%d-%H%M')" >> $GITHUB_ENV
+      - name: Get OrangeFox Recovery Commit
+        run: |
+          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/bootable/recovery"
 
-    - name: Building OrangeFox
-      run: |
-        cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}"
-        
-        set +e
-        source build/envsetup.sh
-        set -e
-        
-        export ALLOW_MISSING_DEPENDENCIES=true
-        
-        if [ "${{ inputs.MANIFEST_BRANCH }}" = "14.1" ]; then
-          LUNCH_TARGET="${{ inputs.MAKEFILE_NAME }}-ap2a-eng"
-        else
-          LUNCH_TARGET="${{ inputs.MAKEFILE_NAME }}-eng"
-        fi
+          echo "OF_COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "OF_SHORT_COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "OF_COMMIT_TITLE=$(git log -1 --pretty=%s)" >> $GITHUB_ENV
+          echo "OF_COMMIT_DATE=$(git log -1 --date=format:%Y-%m-%d --pretty=%cd)" >> $GITHUB_ENV
 
-        lunch "$LUNCH_TARGET" || { echo "Lunch failed"; exit 1; }
-        
-        make clean
-        
-        mka adbd "${{ inputs.BUILD_TARGET }}image"
+      - name: Building OrangeFox
+        run: |
+          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}"
+          
+          set +e
+          source build/envsetup.sh
+          set -e
+          
+          export ALLOW_MISSING_DEPENDENCIES=true
+          
+          if [ "${{ inputs.MANIFEST_BRANCH }}" = "14.1" ]; then
+            LUNCH_TARGET="${{ inputs.MAKEFILE_NAME }}-ap2a-eng"
+          else
+            LUNCH_TARGET="${{ inputs.MAKEFILE_NAME }}-eng"
+          fi
 
-    - name: Rename Build Outputs
-      run: |
-        cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}"
-        
-        for f in OrangeFox*.img; do
-          [ -e "$f" ] && mv "$f" "${f%.img}-${{ env.BUILD_DATE }}.img"
-        done
-        
-        for f in OrangeFox*.zip; do
-          [ -e "$f" ] && mv "$f" "${f%.zip}-${{ env.BUILD_DATE }}.zip"
-        done
+          lunch "$LUNCH_TARGET" || { echo "Lunch failed"; exit 1; }
+          
+          make clean
+          
+          mka adbd "${{ inputs.BUILD_TARGET }}image"
 
-    - name: Create Release Notes
-      run: |
-        cat <<EOF > release_notes.md
-        OrangeFox Branch: ${{ inputs.MANIFEST_BRANCH }}
+      - name: Rename Build Outputs
+        run: |
+          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}"
+          
+          for f in OrangeFox*.img; do
+            [ -e "$f" ] && mv "$f" "${f%.img}-${{ env.BUILD_DATE }}.img"
+          done
+          
+          for f in OrangeFox*.zip; do
+            [ -e "$f" ] && mv "$f" "${f%.zip}-${{ env.BUILD_DATE }}.zip"
+          done
 
-        Device: ${{ inputs.DEVICE_NAME }}
-        Image Build Target: ${{ inputs.BUILD_TARGET }}
-        
-        Device Tree Repo: [Device Tree](${{ inputs.DEVICE_TREE }})
-        Device Tree Branch: ${{ inputs.DEVICE_TREE_BRANCH }}
-        
-        OrangeFox Recovery Commit:
-        [${{ env.OF_SHORT_COMMIT }}](https://gitlab.com/OrangeFox/bootable/Recovery/-/commit/${{ env.OF_COMMIT_ID }}) - ${{ env.OF_COMMIT_TITLE }} (${{ env.OF_COMMIT_DATE }})
+      - name: Create Release Notes
+        run: |
+          cat <<EOF > release_notes.md
+          OrangeFox Branch: ${{ inputs.MANIFEST_BRANCH }}
 
-        Device Tree Commit:
-        [${{ env.SHORT_COMMIT_ID }}](${{ inputs.DEVICE_TREE }}/commit/${{ env.COMMIT_ID }}) - ${{ env.COMMIT_TITLE }} (${{ env.COMMIT_DATE }})
-        EOF
+          Device: ${{ inputs.DEVICE_NAME }}
+          Image Build Target: ${{ inputs.BUILD_TARGET }}
+          
+          Device Tree Repo: [Device Tree](${{ inputs.DEVICE_TREE }})
+          Device Tree Branch: ${{ inputs.DEVICE_TREE_BRANCH }}
+          
+          OrangeFox Recovery Commit:
+          [${{ env.OF_SHORT_COMMIT }}](https://gitlab.com/OrangeFox/bootable/Recovery/-/commit/${{ env.OF_COMMIT_ID }}) - ${{ env.OF_COMMIT_TITLE }} (${{ env.OF_COMMIT_DATE }})
 
-    - name: Upload to Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/OrangeFox*.img
-          OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/OrangeFox*.zip
-        name: OrangeFox Recovery for ${{ inputs.DEVICE_NAME }} (${{ env.BUILD_DATE }}) (${{ env.SHORT_COMMIT_ID }})
-        tag_name: ${{ inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}
-        body_path: release_notes.md
-        prerelease: true
+          Device Tree Commit:
+          [${{ env.SHORT_COMMIT_ID }}](${{ inputs.DEVICE_TREE }}/commit/${{ env.COMMIT_ID }}) - ${{ env.COMMIT_TITLE }} (${{ env.COMMIT_DATE }})
+          EOF
 
-    - name: Send Notification to Telegram
-      run: |
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/OrangeFox*.img
+            OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}/OrangeFox*.zip
+          name: OrangeFox Recovery for ${{ inputs.DEVICE_NAME }} (${{ env.BUILD_DATE }}) (${{ env.SHORT_COMMIT_ID }})
+          tag_name: ${{ inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}
+          body_path: release_notes.md
+          prerelease: true
+
+      - name: Send Notification to Telegram
+        run: |
           OUT_DIR="${GITHUB_WORKSPACE}/OrangeFox/fox_${{ inputs.MANIFEST_BRANCH }}/out/target/product/${{ inputs.DEVICE_NAME }}"
           FILE=$(find "$OUT_DIR" -maxdepth 1 -type f -name "OrangeFox*.img" | head -n 1)
 
@@ -173,8 +175,10 @@ jobs:
             MD5_VAL=$(md5sum "$FILE" | cut -d ' ' -f 1)
             DIRECT_LINK="https://github.com/${{ github.repository }}/releases/download/${{ inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}/${FILE_NAME}"
 
+            ACTOR_CLEAN=$(echo "${{ github.actor }}" | tr -d '@')
+
             BUILD_END=$(date +%s)
-            DIFF=$((BUILD_END - BUILD_START))
+            DIFF=$((BUILD_END - ${BUILD_START:-BUILD_END}))
             DAYS=$((DIFF / 86400))
             HOURS=$(( (DIFF % 86400) / 3600 ))
             MINS=$(( (DIFF % 3600) / 60 ))
@@ -186,13 +190,18 @@ jobs:
             [ $MINS -gt 0 ] && BUILD_DURATION="${BUILD_DURATION}${MINS}m "
             BUILD_DURATION="${BUILD_DURATION}${SECS}s"
 
-            CAPTION=$(printf '<b>OrangeFox R%s</b> for OPPO A16\n- <b>Build Type:</b> Unofficial\n- <b>Build Date:</b> %s\n- <b>Build By:</b> @%s\n- <b>Build Time:</b> %s\n\n◾<b>Download:</b> <a href="%s">Here</a>\n\n<b>MD5:</b> <code>%s</code>' \
-              "${{ inputs.MANIFEST_BRANCH }}" \
-              "${{ env.BUILD_DATE_PRETTY }}" \
-              "${{ github.actor }}" \
-              "${BUILD_DURATION}" \
-              "${DIRECT_LINK}" \
-              "${MD5_VAL}")
+            CAPTION=$(cat <<EOF
+<b>OrangeFox R${{ inputs.MANIFEST_BRANCH }}</b> for OPPO A16
+- <b>Build Type:</b> Unofficial
+- <b>Build Date:</b> ${{ env.BUILD_DATE_PRETTY }}
+- <b>Build By:</b> <a href="https://github.com/${ACTOR_CLEAN}">${ACTOR_CLEAN}</a>
+- <b>Build Time:</b> ${BUILD_DURATION}
+
+◾<b>Download:</b> <a href="${DIRECT_LINK}">Here</a>
+
+<b>MD5:</b> <code>${MD5_VAL}</code>
+EOF
+            )
 
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.bot_token }}/sendPhoto" \
                  -d "chat_id=-1004452787333" \
